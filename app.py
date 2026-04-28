@@ -13,7 +13,6 @@ ALLOWED_CHAT_ID = str(os.getenv("TELEGRAM_CHAT_ID"))
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
 
-# 🔹 Send message safely
 def send_message(chat_id, text, reply_markup=None):
     try:
         url = f"{TELEGRAM_API}/sendMessage"
@@ -30,7 +29,6 @@ def send_message(chat_id, text, reply_markup=None):
         print("Telegram send error:", str(e))
 
 
-# 🔹 Call EC2 API
 def call_ec2(action):
     try:
         response = requests.post(
@@ -47,26 +45,34 @@ def call_ec2(action):
         return f"❌ API Error: {str(e)}"
 
 
-# 🔹 Main handler
-def handler(request):
-    # Health check
-    if request.method == "GET":
-        return {
-            "statusCode": 200,
-            "body": "✅ Bot is running"
-        }
-
+# ✅ THIS is what Vercel needs
+def app(environ, start_response):
     try:
-        body = json.loads(request.body)
+        method = environ.get("REQUEST_METHOD")
 
-        # 🔹 MESSAGE HANDLING
-        if "message" in body:
-            chat_id = str(body["message"]["chat"]["id"])
-            text = body["message"].get("text", "")
+        # 🌐 Health check
+        if method == "GET":
+            response_body = "✅ Bot is running"
+            start_response("200 OK", [("Content-Type", "text/plain")])
+            return [response_body.encode()]
 
-            # 🔐 Restrict access
+        # 📥 Read request body
+        try:
+            content_length = int(environ.get("CONTENT_LENGTH", 0))
+        except:
+            content_length = 0
+
+        body = environ["wsgi.input"].read(content_length)
+        data = json.loads(body.decode("utf-8") or "{}")
+
+        # 🔹 MESSAGE
+        if "message" in data:
+            chat_id = str(data["message"]["chat"]["id"])
+            text = data["message"].get("text", "")
+
             if chat_id != ALLOWED_CHAT_ID:
-                return {"statusCode": 403, "body": "Unauthorized"}
+                start_response("403 Forbidden", [])
+                return [b"Unauthorized"]
 
             if text == "/start":
                 keyboard = {
@@ -80,15 +86,15 @@ def handler(request):
 
                 send_message(chat_id, "Choose an action:", keyboard)
 
-        # 🔹 BUTTON CLICK HANDLING
-        elif "callback_query" in body:
-            query = body["callback_query"]
+        # 🔹 CALLBACK
+        elif "callback_query" in data:
+            query = data["callback_query"]
             chat_id = str(query["message"]["chat"]["id"])
             action = query["data"]
 
-            # 🔐 Restrict access
             if chat_id != ALLOWED_CHAT_ID:
-                return {"statusCode": 403, "body": "Unauthorized"}
+                start_response("403 Forbidden", [])
+                return [b"Unauthorized"]
 
             send_message(chat_id, f"⏳ Processing: {action}...")
 
@@ -96,23 +102,18 @@ def handler(request):
 
             send_message(chat_id, f"✅ Action: {action}\n{result}")
 
-        return {
-            "statusCode": 200,
-            "body": "ok"
-        }
+        start_response("200 OK", [("Content-Type", "application/json")])
+        return [b'{"status":"ok"}']
 
     except Exception as e:
         error_msg = f"❌ Bot Error:\n{str(e)}"
         print(error_msg)
 
-        # Try sending error to Telegram (if possible)
         try:
             if ALLOWED_CHAT_ID:
                 send_message(ALLOWED_CHAT_ID, error_msg)
         except:
             pass
 
-        return {
-            "statusCode": 500,
-            "body": "Internal Server Error"
-        }
+        start_response("500 Internal Server Error", [])
+        return [b"Internal Server Error"]
