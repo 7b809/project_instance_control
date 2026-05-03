@@ -29,6 +29,11 @@ body { background: #0f172a; color: white; }
             ⏹ Stop Instance
         </button>
 
+        <!-- NEW COPY BUTTON -->
+        <button class="btn btn-primary btn-lg" onclick="copyCommands()">
+            📋 Copy Start Commands
+        </button>
+
         <div id="status" class="status-box text-info">
             Status: Idle
         </div>
@@ -71,6 +76,20 @@ async function controlEC2(action) {
     // Re-enable buttons
     startBtn.disabled = false;
     stopBtn.disabled = false;
+}
+
+function copyCommands() {
+    const commands = `cd /home/ubuntu/code-server-project/projects/TheProjects/t_order_system_ws
+chmod +x stop_app.sh start_app.sh
+./start_app.sh`;
+
+    navigator.clipboard.writeText(commands)
+        .then(() => {
+            document.getElementById("status").innerText = "📋 Commands copied!";
+        })
+        .catch(err => {
+            document.getElementById("status").innerText = "❌ Copy failed: " + err;
+        });
 }
 </script>
 
