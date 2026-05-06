@@ -8,51 +8,98 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
 <style>
-body { background: #0f172a; color: white; }
-.card { border-radius: 20px; }
-.btn-lg { width: 100%; margin-bottom: 10px; }
-.status-box { font-size: 18px; margin-top: 15px; }
+body {
+    background: #0f172a;
+    color: white;
+}
+
+.card {
+    border-radius: 20px;
+    background: #1e293b;
+}
+
+.btn-lg {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.status-box {
+    font-size: 18px;
+    margin-top: 15px;
+    min-height: 30px;
+}
 </style>
 </head>
 
 <body>
 
 <div class="container d-flex justify-content-center align-items-center vh-100">
-    <div class="card p-4 shadow-lg text-center" style="width: 350px;">
+    <div class="card p-4 shadow-lg text-center" style="width: 420px;">
+
         <h3 class="mb-3">🚀 EC2 Control Panel</h3>
 
-        <button id="startBtn" class="btn btn-success btn-lg" onclick="controlEC2('start')">
+        <!-- EC2 CONTROLS -->
+        <button id="startBtn"
+                class="btn btn-success btn-lg"
+                onclick="controlEC2('start')">
             ▶ Start Instance
         </button>
 
-        <button id="stopBtn" class="btn btn-danger btn-lg" onclick="controlEC2('stop')">
+        <button id="stopBtn"
+                class="btn btn-danger btn-lg"
+                onclick="controlEC2('stop')">
             ⏹ Stop Instance
         </button>
 
-        <!-- NEW COPY BUTTON -->
-        <button class="btn btn-primary btn-lg" onclick="copyCommands()">
-            📋 Copy Start Commands
+        <hr class="text-secondary">
+
+        <!-- PROJECT COMMAND -->
+        <button class="btn btn-primary btn-lg"
+                onclick="copyProjectStartCommands()">
+            📋 Copy Project Start Commands
         </button>
 
+        <!-- CODE SERVER START -->
+        <button class="btn btn-warning btn-lg"
+                onclick="copyCodeServerStart()">
+            🟢 Copy Start Code-Server
+        </button>
+
+        <!-- CODE SERVER STOP -->
+        <button class="btn btn-secondary btn-lg"
+                onclick="copyCodeServerStop()">
+            🔴 Copy Stop Code-Server
+        </button>
+
+        <!-- CODE SERVER STATUS -->
+        <button class="btn btn-info btn-lg"
+                onclick="copyCodeServerCheck()">
+            🔍 Copy Check Code-Server
+        </button>
+
+        <!-- STATUS -->
         <div id="status" class="status-box text-info">
             Status: Idle
         </div>
+
     </div>
 </div>
 
 <script>
+
 async function controlEC2(action) {
+
     const statusBox = document.getElementById("status");
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
 
-    // Disable buttons
     startBtn.disabled = true;
     stopBtn.disabled = true;
 
     statusBox.innerText = "⏳ Processing " + action + "...";
 
     try {
+
         const res = await fetch("/api/control", {
             method: "POST",
             headers: {
@@ -64,33 +111,102 @@ async function controlEC2(action) {
         const data = await res.json();
 
         if (!res.ok) {
-            statusBox.innerText = "❌ Error: " + (data.error || "Request failed");
+            statusBox.innerText =
+                "❌ Error: " + (data.error || "Request failed");
         } else {
-            statusBox.innerText = "✅ Success: " + (data.message || JSON.stringify(data));
+            statusBox.innerText =
+                "✅ Success: " + (data.message || JSON.stringify(data));
         }
 
     } catch (err) {
+
         statusBox.innerText = "❌ Error: " + err.message;
+
     }
 
-    // Re-enable buttons
     startBtn.disabled = false;
     stopBtn.disabled = false;
 }
 
-function copyCommands() {
+
+function copyToClipboard(text, successMessage) {
+
+    navigator.clipboard.writeText(text)
+        .then(() => {
+            document.getElementById("status").innerText = successMessage;
+        })
+        .catch(err => {
+            document.getElementById("status").innerText =
+                "❌ Copy failed: " + err;
+        });
+}
+
+
+/* -----------------------------------
+   PROJECT START COMMANDS
+----------------------------------- */
+
+function copyProjectStartCommands() {
+
     const commands = `cd /home/ubuntu/code-server-project/projects/TheProjects/t_order_system_ws
 chmod +x stop_app.sh start_app.sh
 ./start_app.sh`;
 
-    navigator.clipboard.writeText(commands)
-        .then(() => {
-            document.getElementById("status").innerText = "📋 Commands copied!";
-        })
-        .catch(err => {
-            document.getElementById("status").innerText = "❌ Copy failed: " + err;
-        });
+    copyToClipboard(
+        commands,
+        "📋 Project start commands copied!"
+    );
 }
+
+
+/* -----------------------------------
+   START CODE SERVER
+----------------------------------- */
+
+function copyCodeServerStart() {
+
+    const commands = `nohup code-server /home/ubuntu/code-server-project/projects/TheProjects \
+--bind-addr 0.0.0.0:8080 \
+--auth password \
+> ~/code-server.log 2>&1 &`;
+
+    copyToClipboard(
+        commands,
+        "🟢 Start code-server command copied!"
+    );
+}
+
+
+/* -----------------------------------
+   STOP CODE SERVER
+----------------------------------- */
+
+function copyCodeServerStop() {
+
+    const commands = `pkill -f code-server`;
+
+    copyToClipboard(
+        commands,
+        "🔴 Stop code-server command copied!"
+    );
+}
+
+
+/* -----------------------------------
+   CHECK CODE SERVER
+----------------------------------- */
+
+function copyCodeServerCheck() {
+
+    const commands = `ps aux | grep code-server
+sudo ss -tulnp | grep 8080`;
+
+    copyToClipboard(
+        commands,
+        "🔍 Check code-server commands copied!"
+    );
+}
+
 </script>
 
 </body>
